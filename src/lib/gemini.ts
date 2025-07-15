@@ -1,35 +1,41 @@
-interface GeminiResponse {
-  candidates: Array<{
-    content: {
-      parts: Array<{
-        text: string;
-      }>;
-    };
+interface AnthropicResponse {
+  content: Array<{
+    text: string;
+    type: string;
   }>;
+  id: string;
+  model: string;
+  role: string;
+  stop_reason: string;
+  stop_sequence: null;
+  type: string;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+  };
 }
 
-interface GeminiErrorResponse {
+interface AnthropicErrorResponse {
   error?: {
     message?: string;
-    code?: number;
-    status?: string;
+    type?: string;
   };
 }
 
 export class GeminiService {
   private apiKey: string;
-  private baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+  private baseUrl = 'https://api.anthropic.com/v1/messages';
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    this.apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
     if (!this.apiKey) {
-      throw new Error('Gemini API key is required');
+      throw new Error('Anthropic API key is required');
     }
   }
 
   private async getErrorMessage(response: Response): Promise<string> {
     try {
-      const errorData: GeminiErrorResponse = await response.json();
+      const errorData: AnthropicErrorResponse = await response.json();
       if (errorData.error?.message) {
         return errorData.error.message;
       }
@@ -40,69 +46,64 @@ export class GeminiService {
   }
 
   async generateCoverLetter(resumeData: any, jobDescription: string, companyName: string, position: string): Promise<string> {
-    const prompt = `
-      Generate a professional cover letter based on the following information:
+    const prompt = `Generate a professional cover letter based on the following information:
       
-      Resume Data:
-      - Name: ${resumeData.header?.name || 'Candidate'}
-      - Current Title: ${resumeData.header?.title || ''}
-      - Summary: ${resumeData.summary?.text || ''}
-      - Experience: ${JSON.stringify(resumeData.experience?.items || [])}
-      - Skills: ${JSON.stringify(resumeData.skills?.items || [])}
-      
-      Job Information:
-      - Company: ${companyName}
-      - Position: ${position}
-      - Job Description: ${jobDescription}
-      
-      Please write a compelling, personalized cover letter that:
-      1. Addresses the hiring manager professionally
-      2. Shows enthusiasm for the specific role and company
-      3. Highlights relevant experience and skills from the resume
-      4. Demonstrates knowledge of the company/role from the job description
-      5. Includes a strong closing with call to action
-      6. Maintains professional tone throughout
-      7. Is approximately 3-4 paragraphs long
-      
-      Format the response as a complete cover letter ready to send.
-    `;
+Resume Data:
+- Name: ${resumeData.header?.name || 'Candidate'}
+- Current Title: ${resumeData.header?.title || ''}
+- Summary: ${resumeData.summary?.text || ''}
+- Experience: ${JSON.stringify(resumeData.experience?.items || [])}
+- Skills: ${JSON.stringify(resumeData.skills?.items || [])}
+
+Job Information:
+- Company: ${companyName}
+- Position: ${position}
+- Job Description: ${jobDescription}
+
+Please write a compelling, personalized cover letter that:
+1. Addresses the hiring manager professionally
+2. Shows enthusiasm for the specific role and company
+3. Highlights relevant experience and skills from the resume
+4. Demonstrates knowledge of the company/role from the job description
+5. Includes a strong closing with call to action
+6. Maintains professional tone throughout
+7. Is approximately 3-4 paragraphs long
+
+Format the response as a complete cover letter ready to send.`;
 
     try {
-      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+      const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          contents: [
+          model: 'claude-3-sonnet-20240229',
+          max_tokens: 2048,
+          temperature: 0.7,
+          messages: [
             {
-              parts: [
-                {
-                  text: prompt
-                }
-              ]
+              role: 'user',
+              content: prompt
             }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          }
+          ]
         })
       });
 
       if (!response.ok) {
         const errorMessage = await this.getErrorMessage(response);
-        throw new Error(`Gemini API error: ${errorMessage}`);
+        throw new Error(`Anthropic API error: ${errorMessage}`);
       }
 
-      const data: GeminiResponse = await response.json();
+      const data: AnthropicResponse = await response.json();
       
-      if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('No response from Gemini API');
+      if (!data.content || data.content.length === 0) {
+        throw new Error('No response from Anthropic API');
       }
 
-      return data.candidates[0].content.parts[0].text;
+      return data.content[0].text;
     } catch (error) {
       console.error('Error generating cover letter:', error);
       if (error instanceof Error) {
@@ -113,58 +114,51 @@ export class GeminiService {
   }
 
   async generateResumeContent(section: string, context: string): Promise<string> {
-    const prompt = `
-      ${section === 'analysis' ? context : `
-        Generate professional resume content for the ${section} section.
-        Context: ${context}
-        
-        Please provide content that is:
-        1. Professional and impactful
-        2. ATS-friendly with relevant keywords
-        3. Quantified with metrics where possible
-        4. Action-oriented using strong verbs
-        5. Tailored to the provided context
-        
-        Return only the generated content without additional formatting or explanations.
-      `}
-    `;
+    const prompt = section === 'analysis' ? context : `Generate professional resume content for the ${section} section.
+Context: ${context}
+
+Please provide content that is:
+1. Professional and impactful
+2. ATS-friendly with relevant keywords
+3. Quantified with metrics where possible
+4. Action-oriented using strong verbs
+5. Tailored to the provided context
+
+Return only the generated content without additional formatting or explanations.`;
 
     try {
-      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+      const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          contents: [
+          model: 'claude-3-sonnet-20240229',
+          max_tokens: 2048,
+          temperature: 0.7,
+          messages: [
             {
-              parts: [
-                {
-                  text: prompt
-                }
-              ]
+              role: 'user',
+              content: prompt
             }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          }
+          ]
         })
       });
 
       if (!response.ok) {
         const errorMessage = await this.getErrorMessage(response);
-        throw new Error(`Gemini API error: ${errorMessage}`);
+        throw new Error(`Anthropic API error: ${errorMessage}`);
       }
 
-      const data: GeminiResponse = await response.json();
+      const data: AnthropicResponse = await response.json();
       
-      if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('No response from Gemini API');
+      if (!data.content || data.content.length === 0) {
+        throw new Error('No response from Anthropic API');
       }
 
-      return data.candidates[0].content.parts[0].text;
+      return data.content[0].text;
     } catch (error) {
       console.error('Error generating content:', error);
       if (error instanceof Error) {
@@ -175,123 +169,118 @@ export class GeminiService {
   }
 
   async analyzeResume(resumeText: string, jobDescription?: string): Promise<any> {
-    const prompt = `
-      You are an expert resume analyzer and career coach with deep knowledge of ATS systems, hiring practices, and industry standards. Analyze this resume comprehensively and provide detailed, actionable feedback in a structured format.
-      
-      Resume Content:
-      ${resumeText}
-      
-      ${jobDescription ? `
-      Job Description for Matching Analysis:
-      ${jobDescription}
-      
-      Please also analyze how well this resume matches the job description and provide specific recommendations for improvement.
-      ` : ''}
-      
-      Please provide a comprehensive analysis with the following EXACT structure and headings:
+    const prompt = `You are an expert resume analyzer and career coach with deep knowledge of ATS systems, hiring practices, and industry standards. Analyze this resume comprehensively and provide detailed, actionable feedback in a structured format.
 
-      ## SCORING ANALYSIS
-      Overall Resume Quality Score: [0-100]
-      ATS Compatibility Score: [0-100]
-      Readability Score: [0-100]
-      Keyword Optimization Score: [0-100]
-      ${jobDescription ? 'Job Match Score: [0-100]' : ''}
+Resume Content:
+${resumeText}
 
-      ## CRITICAL IMPROVEMENTS NEEDED:
-      - [List 3-5 critical issues that must be fixed immediately]
-      - [Focus on ATS compatibility, major formatting issues, missing essential information]
-      - [Each point should be specific and actionable]
+${jobDescription ? `
+Job Description for Matching Analysis:
+${jobDescription}
 
-      ## RECOMMENDED IMPROVEMENTS:
-      - [List 4-6 recommended enhancements for better impact]
-      - [Focus on content optimization, keyword enhancement, achievement quantification]
-      - [Each point should provide clear guidance for improvement]
+Please also analyze how well this resume matches the job description and provide specific recommendations for improvement.
+` : ''}
 
-      ## EXCELLENT ASPECTS:
-      - [List 3-5 things the resume does well]
-      - [Highlight strengths to maintain and build upon]
-      - [Acknowledge good practices and effective elements]
+Please provide a comprehensive analysis with the following EXACT structure and headings:
 
-      ## KEYWORD ANALYSIS:
-      Found Keywords: [List 8-12 relevant keywords currently present in the resume]
-      Missing Keywords: [List 6-10 important industry keywords that are missing]
-      Suggested Keywords: [List 8-12 specific keywords to add for better ATS performance]
+## SCORING ANALYSIS
+Overall Resume Quality Score: [0-100]
+ATS Compatibility Score: [0-100]
+Readability Score: [0-100]
+Keyword Optimization Score: [0-100]
+${jobDescription ? 'Job Match Score: [0-100]' : ''}
 
-      ${jobDescription ? `
-      ## JOB MATCHING ANALYSIS:
-      Match Percentage: [0-100]%
-      Missing Skills: [List skills from job description not found in resume]
-      Aligned Experience: [List experience that matches job requirements well]
-      Recommended Keywords: [List job-specific keywords to incorporate]
-      ` : ''}
+## CRITICAL IMPROVEMENTS NEEDED:
+- [List 3-5 critical issues that must be fixed immediately]
+- [Focus on ATS compatibility, major formatting issues, missing essential information]
+- [Each point should be specific and actionable]
 
-      ## SECTION-BY-SECTION ANALYSIS:
-      ### Contact Information: [Score: 0-100]
-      [Specific feedback and suggestions]
+## RECOMMENDED IMPROVEMENTS:
+- [List 4-6 recommended enhancements for better impact]
+- [Focus on content optimization, keyword enhancement, achievement quantification]
+- [Each point should provide clear guidance for improvement]
 
-      ### Professional Summary: [Score: 0-100]
-      [Specific feedback and suggestions]
+## EXCELLENT ASPECTS:
+- [List 3-5 things the resume does well]
+- [Highlight strengths to maintain and build upon]
+- [Acknowledge good practices and effective elements]
 
-      ### Work Experience: [Score: 0-100]
-      [Specific feedback and suggestions]
+## KEYWORD ANALYSIS:
+Found Keywords: [List 8-12 relevant keywords currently present in the resume]
+Missing Keywords: [List 6-10 important industry keywords that are missing]
+Suggested Keywords: [List 8-12 specific keywords to add for better ATS performance]
 
-      ### Skills Section: [Score: 0-100]
-      [Specific feedback and suggestions]
+${jobDescription ? `
+## JOB MATCHING ANALYSIS:
+Match Percentage: [0-100]%
+Missing Skills: [List skills from job description not found in resume]
+Aligned Experience: [List experience that matches job requirements well]
+Recommended Keywords: [List job-specific keywords to incorporate]
+` : ''}
 
-      ### Education: [Score: 0-100]
-      [Specific feedback and suggestions]
+## SECTION-BY-SECTION ANALYSIS:
+### Contact Information: [Score: 0-100]
+[Specific feedback and suggestions]
 
-      ## ATS OPTIMIZATION RECOMMENDATIONS:
-      - [Specific formatting improvements for better ATS parsing]
-      - [Keyword density and placement suggestions]
-      - [Section organization recommendations]
-      - [File format and structure advice]
+### Professional Summary: [Score: 0-100]
+[Specific feedback and suggestions]
 
-      ## CONTENT EXTRACTION:
-      Personal Information:
-      - Name: [Extract name]
-      - Email: [Extract email]
-      - Phone: [Extract phone]
-      - Location: [Extract location]
-      - LinkedIn: [Extract if present]
-      - Website: [Extract if present]
+### Work Experience: [Score: 0-100]
+[Specific feedback and suggestions]
 
-      Professional Summary: [Extract or note if missing]
+### Skills Section: [Score: 0-100]
+[Specific feedback and suggestions]
 
-      Work Experience: [List companies, positions, and key achievements]
+### Education: [Score: 0-100]
+[Specific feedback and suggestions]
 
-      Education: [List degrees and institutions]
+## ATS OPTIMIZATION RECOMMENDATIONS:
+- [Specific formatting improvements for better ATS parsing]
+- [Keyword density and placement suggestions]
+- [Section organization recommendations]
+- [File format and structure advice]
 
-      Skills: [Categorize technical and soft skills]
+## CONTENT EXTRACTION:
+Personal Information:
+- Name: [Extract name]
+- Email: [Extract email]
+- Phone: [Extract phone]
+- Location: [Extract location]
+- LinkedIn: [Extract if present]
+- Website: [Extract if present]
 
-      Certifications: [List if present]
+Professional Summary: [Extract or note if missing]
 
-      Projects: [List if present]
+Work Experience: [List companies, positions, and key achievements]
 
-      Please ensure your response follows this EXACT structure with clear headings and bullet points. Be specific, actionable, and encouraging while being honest about areas needing improvement. Focus on both immediate fixes and long-term enhancements.
-    `;
+Education: [List degrees and institutions]
+
+Skills: [Categorize technical and soft skills]
+
+Certifications: [List if present]
+
+Projects: [List if present]
+
+Please ensure your response follows this EXACT structure with clear headings and bullet points. Be specific, actionable, and encouraging while being honest about areas needing improvement. Focus on both immediate fixes and long-term enhancements.`;
 
     try {
-      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+      const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          contents: [
+          model: 'claude-3-sonnet-20240229',
+          max_tokens: 4096,
+          temperature: 0.3,
+          messages: [
             {
-              parts: [
-                {
-                  text: prompt
-                }
-              ]
+              role: 'user',
+              content: prompt
             }
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            topP: 0.95,
-            maxOutputTokens: 4096,
-          }
+          ]
         })
       });
 
@@ -300,13 +289,13 @@ export class GeminiService {
         throw new Error(`AI Analysis Error: ${errorMessage}`);
       }
 
-      const data: GeminiResponse = await response.json();
+      const data: AnthropicResponse = await response.json();
       
-      if (!data.candidates || data.candidates.length === 0) {
+      if (!data.content || data.content.length === 0) {
         throw new Error('No analysis response from AI');
       }
 
-      return data.candidates[0].content.parts[0].text;
+      return data.content[0].text;
     } catch (error) {
       console.error('Error analyzing resume with AI:', error);
       if (error instanceof Error) {
