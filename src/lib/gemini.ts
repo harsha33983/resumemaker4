@@ -105,6 +105,9 @@ export class GeminiService {
       return data.candidates[0].content.parts[0].text;
     } catch (error) {
       console.error('Error generating cover letter:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Failed to generate cover letter. Please try again.');
     }
   }
@@ -164,6 +167,9 @@ export class GeminiService {
       return data.candidates[0].content.parts[0].text;
     } catch (error) {
       console.error('Error generating content:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Failed to generate content. Please try again.');
     }
   }
@@ -303,6 +309,9 @@ export class GeminiService {
       return data.candidates[0].content.parts[0].text;
     } catch (error) {
       console.error('Error analyzing resume with AI:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Failed to analyze resume with AI. Please check your connection and try again.');
     }
   }
