@@ -12,8 +12,9 @@ import Settings from './components/Settings';
 import CoverLetterGenerator from './components/CoverLetterGenerator';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthModal from './components/Auth/AuthModal';
+import NLPResumeGenerator from './components/NLPResumeGenerator';
 
-type View = 'home' | 'dashboard' | 'builder' | 'analyzer' | 'templates' | 'pricing' | 'settings' | 'cover-letters';
+type View = 'home' | 'dashboard' | 'builder' | 'analyzer' | 'templates' | 'pricing' | 'settings' | 'cover-letters' | 'nlp-generator';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('home');
@@ -100,6 +101,11 @@ function App() {
         {currentView === 'cover-letters' && (
           <ProtectedRoute>
             <CoverLetterGenerator onNavigate={handleNavigation} />
+          </ProtectedRoute>
+        )}
+        {currentView === 'nlp-generator' && (
+          <ProtectedRoute>
+            <NLPResumeGenerator onNavigate={handleNavigation} />
           </ProtectedRoute>
         )}
         

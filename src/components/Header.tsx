@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import AuthModal from './Auth/AuthModal';
 import UserMenu from './Auth/UserMenu';
 
-type View = 'home' | 'dashboard' | 'builder' | 'analyzer' | 'templates' | 'pricing' | 'cover-letters';
+type View = 'home' | 'dashboard' | 'builder' | 'analyzer' | 'templates' | 'pricing' | 'cover-letters' | 'nlp-generator';
 
 interface HeaderProps {
   onNavigate: (view: View) => void;
@@ -55,6 +55,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
   const authenticatedNavItems = [
     { label: 'Dashboard', view: 'dashboard' as View },
     { label: 'Builder', view: 'builder' as View },
+    { label: 'NLP Generator', view: 'nlp-generator' as View },
     { label: 'Cover Letters', view: 'cover-letters' as View },
     { label: 'Templates', view: 'templates' as View },
     { label: 'Analyzer', view: 'analyzer' as View },

@@ -3,8 +3,9 @@ import { Plus, FileText, BarChart3, Download, Clock, Star, ArrowRight, Loader2, 
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { PDFGenerator } from '../lib/pdfGenerator';
+import { Brain } from 'lucide-react';
 
-type View = 'home' | 'dashboard' | 'builder' | 'analyzer' | 'templates' | 'pricing' | 'cover-letters';
+type View = 'home' | 'dashboard' | 'builder' | 'analyzer' | 'templates' | 'pricing' | 'cover-letters' | 'nlp-generator';
 
 interface DashboardProps {
   onNavigate: (view: View) => void;
@@ -323,11 +324,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       color: 'from-blue-600 to-purple-600'
     },
     {
+      title: 'NLP Resume Generator',
+      description: 'Generate resume from job description using AI',
+      icon: Brain,
+      action: () => onNavigate('nlp-generator'),
+      color: 'from-purple-600 to-pink-600'
+    },
+    {
       title: 'Generate Cover Letter',
       description: 'AI-powered cover letter generation',
       icon: FileText,
       action: () => onNavigate('cover-letters'),
-      color: 'from-purple-600 to-pink-600'
+      color: 'from-pink-600 to-red-600'
     },
     {
       title: 'Analyze Resume',
