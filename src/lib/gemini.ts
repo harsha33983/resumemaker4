@@ -18,7 +18,7 @@ interface GeminiErrorResponse {
 
 export class GeminiService {
   private apiKey: string;
-  private baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+  private baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
   constructor() {
     this.apiKey = import.meta.env.VITE_GEMINI_API_KEY;
